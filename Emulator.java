@@ -14,7 +14,7 @@ public class Emulator {
     static int[] values = new int[256];
     static boolean[] listening = new boolean[256];
     static Dictionary<String, Integer> finishedMRI;
-    static boolean acReadout = false;
+    static boolean acReadout = true;
 
     public static ArrayList<String> loadFile(String file) {
         ArrayList<String> initialFile = new ArrayList<String>();
@@ -85,10 +85,19 @@ public class Emulator {
                 i++;
                 continue;
             } if (line.contains("DEC")) {
-                System.out.println(line.split(" ")[2] + " " + LC);
-                values[LC] = Integer.parseInt(line.split(" ")[2]);
+                if (line.contains(",")) {
+                    System.out.println(line.split(" ")[2] + " " + LC);
+                    values[LC] = Integer.parseInt(line.split(" ")[2]);
+                } else {
+                    values[LC] = Integer.parseInt(line.split(" ")[1]);
+                }
+                
             } if (line.contains("HEX")) {
-                values[LC] = Integer.parseInt(line.split(" ")[2], 16);
+                if (line.contains(",")) {
+                    values[LC] = Integer.parseInt(line.split(" ")[2], 16);
+                } else {
+                    values[LC] = Integer.parseInt(line.split(" ")[1], 16);
+                }
             }
 
             // Remove Comment
@@ -121,6 +130,10 @@ public class Emulator {
                 // case "AND":
                 //     operations[LC] = indirect ? Instructions.ANDI : Instructions.AND;
                 //     break;
+                case "AND":
+                    operations[LC] = indirect ? Instructions.ANDI : Instructions.AND ;
+                    values[LC] = MRI.get(split[1]);
+                    break;
                 case "ADD":
                     operations[LC] = indirect ? Instructions.ADDI : Instructions.ADD ;
                     values[LC] = MRI.get(split[1]);
@@ -195,11 +208,16 @@ public class Emulator {
         boolean stop = false;
         while (!stop) {
             IR = operations[PC];
+            if(IR == null) {
+                PC++;
+                continue;
+            }
             System.out.println("Executing Instruction " + IR + " at location " + PC + " with value " + values[PC]);
             
             switch (IR) {
-                case LDA:
-                    AC = values[values[PC]];
+                case AND:
+                    System.out.println(AC + " AND " + values[values[PC]] + " EQUALS " + (AC & values[values[PC]]));
+                    AC = (AC & values[values[PC]]);
                     break;
 
                 case ADD:
@@ -209,15 +227,54 @@ public class Emulator {
                     }
                     break;
 
+                case ADDI:
+                    AC = AC + values[values[values[PC]]];
+                    if (AC > max16bit) {
+                        E = true;
+                    }
+                    break;
+                
+                case LDA:
+                    AC = values[values[PC]];
+                    break;
+                
+                case LDAI:
+                    System.out.println("ADDRESS OF POINTER To LOAD = " + values[PC]);
+                    AC = values[PC];
+                    System.out.println("ADDRESS OF VALUE To LOAD = " + values[AC]);
+                    AC = values[AC];
+                    System.out.println("VALUE TO LOAD = " + values[AC]);
+                    AC = values[AC] - 1;
+                    break;
+
                 case STA:
                     AR = values[PC];
                     values[AR] = AC;
+                    broadcastChange(AR);
+                    break;
+                
+                case STAI:
+                    AR = values[PC];
+                    values[values[AR]] = AC;
                     broadcastChange(AR);
                     break;
 
                 case BUN:
                     PC = values[PC];
                     continue;
+                
+                case BUNI:
+                    System.out.println("GOTO " + values[values[PC]]);
+                    PC = values[values[PC]];
+                    continue;
+                
+                case BSA:
+                    System.out.println(values[PC]);
+                    System.out.println(values[values[PC]] + " = " + PC);
+
+                    values[values[PC]] = PC + 1;
+                    PC = values[PC];
+                    
 
                 case ISZ:
                     values[values[PC]] ++;
@@ -304,7 +361,9 @@ public class Emulator {
         //memory = new int[memSize];
 
         //ArrayList<String> initialFile = loadFile("multiply.asm");
-        ArrayList<String> initialFile = loadFile("subtractdoubleprecision.asm");
+        //ArrayList<String> initialFile = loadFile("subtractdoubleprecision.asm");
+        //ArrayList<String> initialFile = loadFile("xor.asm");
+        ArrayList<String> initialFile = loadFile("subtractwithsubroutine.asm");
 
         System.out.println(initialFile.get(3));
 
@@ -312,9 +371,6 @@ public class Emulator {
         Dictionary<String, Integer> fp = firstPass(initialFile);
         finishedMRI = fp;
         secondPass(fp, initialFile);
-
-        addListener("CL");
-        addListener("CH");
 
         run();
 
