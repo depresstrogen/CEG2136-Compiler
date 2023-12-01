@@ -16,17 +16,6 @@ public class Emulator {
     static Dictionary<String, Integer> finishedMRI;
     static boolean acReadout = false;
 
-
-    public static void parser(String s) {
-
-        String nocomment[] = s.split("/");
-        String split[] = nocomment[0].split(" ");
-
-        if (split.length == 4) {
-
-        }
-    }
-
     public static ArrayList<String> loadFile(String file) {
         ArrayList<String> initialFile = new ArrayList<String>();
         try {
@@ -102,21 +91,27 @@ public class Emulator {
                 values[LC] = Integer.parseInt(line.split(" ")[2], 16);
             }
 
+            // Remove Comment
             String noComment[] = line.split("/");
             String toUse = noComment[0];
 
+            // Remove Label if Exists
             if(toUse.contains(",")) {
                 toUse = toUse.split(",")[1];
                 toUse = toUse.substring(1);
             }
+
+            // Now just instruction and value
             System.out.println(toUse);
             String split[] = toUse.split(" ");
 
+            // Get Indirect Addressing var
             boolean indirect = false;
             if (split.length == 3 && split[2].equals("I")) {
                 indirect = true;
             }
 
+            // Log the instruction
             try {
                 System.out.println("Add Instruction \"" + split[0] + "\" at LC " + LC + " with value " + MRI.get(split[1]));
             } catch (Exception e) {
@@ -202,74 +197,76 @@ public class Emulator {
             IR = operations[PC];
             System.out.println("Executing Instruction " + IR + " at location " + PC + " with value " + values[PC]);
             
+            switch (IR) {
+                case LDA:
+                    AC = values[values[PC]];
+                    break;
 
-            if (IR == Instructions.LDA) {
-                AC = values[values[PC]];
-            }
+                case ADD:
+                    AC = AC + values[values[PC]];
+                    if (AC > max16bit) {
+                        E = true;
+                    }
+                    break;
 
-            if (IR == Instructions.ADD) {
-                //System.out.println("ADDing" + AC + " + " + values[values[PC]] );
-                AC = AC + values[values[PC]];
-                if (AC > max16bit) {
-                    E = true;
-                }
-            }
+                case STA:
+                    AR = values[PC];
+                    values[AR] = AC;
+                    broadcastChange(AR);
+                    break;
 
-            if (IR == Instructions.STA) {
-                AR = values[PC];
-                values[AR] = AC;
-                broadcastChange(AR);
-            }
+                case BUN:
+                    PC = values[PC];
+                    continue;
 
-            if (IR == Instructions.BUN) {
-                PC = values[PC];
-                continue;
-            }
+                case ISZ:
+                    values[values[PC]] ++;
+                    if (values[values[PC]] == 0) {
+                        PC ++;
+                    }
+                    break;
 
-            if (IR == Instructions.ISZ) {
-                values[values[PC]] ++;
+                case CLA:
+                    AC = 0;
+                    break;
 
-                if (values[values[PC]] == 0) {
-                    PC ++;
-                }
-                //System.out.println("ISZ " + values[values[PC]] );
-            }
+                case CLE:
+                    E = false;
+                    break;
+                
+                case CMA:
+                    AC = ~AC;
+                    break;
+                
+                case CIL:
+                    AC = AC << 1;
+                    if (E) { AC++; }
+                    break;
 
-            if (IR == Instructions.CLA) {
-                AC = 0;
-            }
+                case INC:
+                    AC++;
+                    break;
 
-            if (IR == Instructions.CLE) {
-                E = false;
-            }
+                case SZA:
+                    if (AC == 0) {
+                        PC ++;
+                    }
+                    break;
 
-            if (IR == Instructions.CMA) {
-                AC = ~AC;
-            }
+                case HLT:
+                    stop = true;
+                    break;
 
-            if (IR == Instructions.CIL) {
-                AC = AC << 1;
-                if (E) { AC++; }
-            }
-
-            if (IR == Instructions.INC) {
-                AC ++;
-            }
-
-            if (IR == Instructions.SZA) {
-                if (AC == 0) {
-                    PC ++;
-                }
-            }
-
-            if (IR == Instructions.HLT) {
-                stop = true;
+                default:
+                    System.err.println("UNSUPPORTED INSTRUCTION");
+                    break;
             }
 
             
             if (acReadout) {
                 System.out.println("AC " + AC);
             }
+
             PC ++;
         }
 
