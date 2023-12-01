@@ -153,8 +153,14 @@ public class Emulator {
                 case "CLA":
                     operations[LC] = Instructions.CLA;
                     break;
+                case "CLE":
+                    operations[LC] = Instructions.CLE;
+                    break;
                 case "CMA":
                     operations[LC] = Instructions.CMA;
+                    break;
+                case "CIL":
+                    operations[LC] = Instructions.CIL;
                     break;
                 case "INC":
                     operations[LC] = Instructions.INC;
@@ -179,6 +185,8 @@ public class Emulator {
     }
 
     public static void run() {
+        int max16bit = 65535;
+
         int AC = 0;
         int AR = 0;
         int PC = 0;
@@ -186,7 +194,7 @@ public class Emulator {
         int DR = 0;
         int OUTR = 0;
 
-        int E = 0;
+        boolean E = false;
 
         Instructions IR = operations[PC];
         boolean stop = false;
@@ -202,6 +210,9 @@ public class Emulator {
             if (IR == Instructions.ADD) {
                 //System.out.println("ADDing" + AC + " + " + values[values[PC]] );
                 AC = AC + values[values[PC]];
+                if (AC > max16bit) {
+                    E = true;
+                }
             }
 
             if (IR == Instructions.STA) {
@@ -228,8 +239,17 @@ public class Emulator {
                 AC = 0;
             }
 
+            if (IR == Instructions.CLE) {
+                E = false;
+            }
+
             if (IR == Instructions.CMA) {
                 AC = ~AC;
+            }
+
+            if (IR == Instructions.CIL) {
+                AC = AC << 1;
+                if (E) { AC++; }
             }
 
             if (IR == Instructions.INC) {
@@ -252,8 +272,6 @@ public class Emulator {
             }
             PC ++;
         }
-
-
 
         System.out.println("HALTED, AC IS " + AC);
     }
@@ -288,7 +306,9 @@ public class Emulator {
         //int memSize = Integer.parseInt(args[1]);
         //memory = new int[memSize];
 
-        ArrayList<String> initialFile = loadFile("multiply.asm");
+        //ArrayList<String> initialFile = loadFile("multiply.asm");
+        ArrayList<String> initialFile = loadFile("subtractdoubleprecision.asm");
+
         System.out.println(initialFile.get(3));
 
         
@@ -296,8 +316,10 @@ public class Emulator {
         finishedMRI = fp;
         secondPass(fp, initialFile);
 
-        //addListener("DIF");
+        addListener("CL");
+        addListener("CH");
 
         run();
+
     }
 }
